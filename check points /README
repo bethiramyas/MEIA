@@ -1,0 +1,29 @@
+# Model Checkpoints
+
+Trained model weights are hosted externally due to GitHub's file-size
+limits (largest checkpoint, the fine-tuned RoBERTa-large encoder, is
+~1.4 GB).
+
+**Download from Hugging Face Hub:**
+```bash
+pip install huggingface_hub
+python -c "
+from huggingface_hub import snapshot_download
+snapshot_download(repo_id='remyasree/meia-hmf-ecrl-v1',
+                   local_dir='checkpoints/')
+"
+```
+
+## Released Checkpoints
+
+| File | Component | Size | Description |
+|---|---|---|---|
+| `mpm_text_encoder.bin` | MPM (text) | ~1.4 GB | RoBERTa-large fine-tuned 10 epochs on MetaConvo-50K |
+| `mpm_vision_encoder.bin` | MPM (vision) | ~350 MB | ViT-B/16 fine-tuned on Stage 1 |
+| `mpm_gesture_encoder.pt` | MPM (gesture) | ~12 MB | TCN fine-tuned on MetaGesture-30K |
+| `mpm_haptic_encoder.pt` | MPM (haptic) | ~3 MB | 1D-CNN trained from scratch |
+| `cafl_bse_stage2.pt` | CAFL + BSE | ~45 MB | Joint Stage 2 pretraining checkpoint |
+| `ecrl_policy_seed{0-4}.pt` | ECRL policy | ~28 MB each | Final policy, one per seed (Figure 2) |
+| `demographic_inference_head.pt` | Section 4.3 | ~2 MB | Balanced accuracy 0.78 (Supplementary D) |
+
+All checkpoints are released under CC BY 4.0 (see `data/LICENSE_DATA.md`).
