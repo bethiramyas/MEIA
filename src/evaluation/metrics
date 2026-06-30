@@ -1,0 +1,87 @@
+"""
+Evaluation metrics: UES, BRI, UTS (Section 5.1 of the paper).
+
+IMPORTANT: These are computational behavioural proxies calibrated against
+simulated agent interactions, NOT validated human-subject measurements.
+See Section 6.4 (Limitations) of the paper for the construct-validity
+discussion before interpreting these metrics as human outcomes.
+"""
+
+from __future__ import annotations
+import numpy as np
+from dataclasses import dataclass
+
+
+@dataclass
+class UESWeights:
+    """Weights derived from factor analysis, pilot n=500 (Section 5.1)."""
+    duration: float = 0.3
+    interaction_freq: float = 0.2
+    task_completion: float = 0.3
+    likert_7pt: float = 0.2
+
+
+def compute_ues(duration_norm: np.ndarray, interaction_freq_norm: np.ndarray,
+                 task_completion: np.ndarray, likert_7pt_norm: np.ndarray,
+                 weights: UESWeights = UESWeights()) -> np.ndarray:
+    """User Engagement Score (UES), 0-100 scale.
+
+    UES = 0.3*duration_norm + 0.2*interaction_freq_norm
+        + 0.3*task_completion + 0.2*Likert_7pt
+    """
+    ues = (
+        weights.duration * duration_norm
+        + weights.interaction_freq * interaction_freq_norm
+        + weights.task_completion * task_completion
+        + weights.likert_7pt * likert_7pt_norm
+    )
+    return ues * 100
+
+
+def compute_bri(delta_dp_baseline: float, delta_dp_model: float) -> float:
+    """Bias Reduction Index (BRI), percentage.
+
+    BRI = 100 * (Delta_DP^B1 - Delta_DP^model) / Delta_DP^B1
+    """
+    if delta_dp_baseline == 0:
+        return 0.0
+    return 100 * (delta_dp_baseline - delta_dp_model) / delta_dp_baseline
+
+
+def compute_uts(ats18_responses: np.ndarray) -> float:
+    """User Trust Score (UTS), 0-100 scale.
+
+    Mean of the AI Trust Scale ATS-18 [Shang et al., 2023], comprising
+    three 6-item sub-scales: Competence, Benevolence, Integrity.
+    Reported Cronbach's alpha = 0.91, test-retest r = 0.87.
+
+    NOTE: In this simulation study, ATS-18 responses are calibrated
+    synthetic responses, not collected from human participants. See
+    Section 5.1 and the construct-validity limitation (Section 6.4).
+    """
+    assert ats18_responses.shape[-1] == 18, "ATS-18 requires 18 items"
+    return float(ats18_responses.mean() / 7 * 100)  # 7-point Likert -> 0-100
+
+
+def bootstrap_ci(values: np.ndarray, n_boot: int = 1000,
+                  ci: float = 0.95, seed: int = 42) -> tuple[float, float]:
+    """Bootstrap confidence interval, as used for all 95% CIs in Table 3."""
+    rng = np.random.default_rng(seed)
+    boot_means = []
+    n = len(values)
+    for _ in range(n_boot):
+        sample = rng.choice(values, size=n, replace=True)
+        boot_means.append(sample.mean())
+    lower = np.percentile(boot_means, (1 - ci) / 2 * 100)
+    upper = np.percentile(boot_means, (1 + ci) / 2 * 100)
+    return float(lower), float(upper)
+
+
+def cohens_d(group1: np.ndarray, group2: np.ndarray) -> float:
+    """Cohen's d effect size, as reported throughout Table 3."""
+    n1, n2 = len(group1), len(group2)
+    pooled_std = np.sqrt(
+        ((n1 - 1) * group1.std(ddof=1) ** 2 + (n2 - 1) * group2.std(ddof=1) ** 2)
+        / (n1 + n2 - 2)
+    )
+    return float((group1.mean() - group2.mean()) / pooled_std)
