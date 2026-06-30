@@ -1,0 +1,80 @@
+# Reproducing Paper Results
+
+This document maps every figure, table, and number in the paper to the
+exact script and command used to produce it.
+
+## Table of Contents
+1. [Figures](#figures)
+2. [Tables](#tables)
+3. [Full Training Pipeline](#full-training-pipeline)
+4. [Full Evaluation Pipeline](#full-evaluation-pipeline)
+
+## Figures
+
+| Figure | Script | Required inputs |
+|---|---|---|
+| Fig. 1 (Architecture) | Diagram only, no code — see `results/figures/MEIA_Architecture.mermaid` | — |
+| Fig. 2 (ECRL training dynamics) | `results/figures/make_figure2.py` | 5 seed training logs (`results/raw_logs/ecrl_s1/seed_*.jsonl`) |
+| Fig. 3 (Main results comparison) | `results/figures/make_figure3.py` | `results/raw_logs/eval/*.json` |
+| Fig. 4 (Ablation waterfall) | `results/figures/make_figure4.py` | `results/tables/table4_ablation.csv` |
+| Fig. 5 (SHAP attribution) | `results/figures/make_figure5.py` | Single S2 interaction log + trained ABM checkpoint |
+
+## Tables
+
+| Table | Script | Required inputs |
+|---|---|---|
+| Table 1 (Literature gap matrix) | Manually curated, no code | — |
+| Table 2 (Training procedure / complexity) | Manually curated from `configs/main_config.yaml` | — |
+| Table 3 (Main results) | `results/tables/make_table3.py` | `results/raw_logs/eval/*.json` |
+| Table 4 (Ablation study) | `results/tables/make_table4.py` | 9 ablation configs, each trained separately |
+| Table 5 (Hyperparameter sensitivity) | `results/tables/make_table5.py` | 5-fold CV sweep over mu, W_max, epsilon_DP |
+
+## Full Training Pipeline
+
+```bash
+# Stage 1: Pretrain modality encoders independently (5 epochs)
+python scripts/train_stage1_encoders.py --config configs/main_config.yaml
+
+# Stage 2: Joint pretraining of CAFL + BSE + demographic head (3 epochs)
+python scripts/train_stage2_fusion.py --config configs/main_config.yaml \
+    --stage1_checkpoint checkpoints/stage1/
+
+# Stage 3: ECRL policy fine-tuning (Algorithm 1), 5 seeds x 1200 episodes
+for seed in 0 1 2 3 4; do
+    python scripts/train_stage3_ecrl.py --config configs/main_config.yaml \
+        --seed $seed --stage2_checkpoint checkpoints/stage2/ \
+        --output_dir results/raw_logs/ecrl_s1/
+done
+```
+
+Estimated time: ~72 GPU-hours per seed on 4x A100-80GB (Stage 3 dominates).
+
+## Full Evaluation Pipeline
+
+```bash
+# Generate the MultiEthic-V benchmark (or download pre-generated logs)
+python benchmarks/MultiEthic-V/generate_benchmark.py --seed 42
+
+# Run all 5 baselines + MEIA on the full 12,000-session benchmark
+python scripts/run_full_evaluation.py \
+    --benchmark_dir benchmarks/MultiEthic-V/generated/ \
+    --meia_checkpoint checkpoints/stage3_final/ \
+    --output_dir results/raw_logs/eval/
+
+# Generate Table 3 and Figure 3 from the evaluation outputs
+python results/tables/make_table3.py --eval_dir results/raw_logs/eval/
+python results/figures/make_figure3.py --eval_dir results/raw_logs/eval/
+```
+
+## Notes on Reproducibility
+
+- All random seeds are fixed in `configs/main_config.yaml` (`seed: 42`)
+  and per-seed training uses seeds 0-4 for the 5-seed average reported
+  in Figure 2.
+- The GPT-4o baselines (B1, B2) use a pinned snapshot
+  (`gpt-4o-2024-08-06`); since commercial endpoints can change behaviour
+  over time even for pinned snapshots, the exact prompts and recorded
+  outputs are released in `supplementary/B_gpt4o_prompts/` for full
+  reproducibility independent of the live API.
+- Bootstrap confidence intervals use 1000 iterations with `seed=42`
+  (see `src/evaluation/metrics.py::bootstrap_ci`).
