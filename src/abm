@@ -1,0 +1,115 @@
+"""
+Adaptive Bias Mitigation (ABM) — Algorithm 2.
+
+Deployment-time post-policy filter. Decouples inference-time fairness
+enforcement from training-time policy learning, providing robustness
+against distributional shift (Section 4.6).
+
+Reference values used in the paper's experiments:
+    W_max = 200       (sliding window size)
+    epsilon_ABM = 0.05
+    C = 16            (re-ranking candidates)
+    mu = 0.8          (scoring trade-off weight)
+
+Selected via 5-fold cross-validation (Table 5 sensitivity analysis).
+"""
+
+from __future__ import annotations
+from collections import deque
+import numpy as np
+import shap
+
+
+class AdaptiveBiasMitigation:
+    """Implements Algorithm 2 from the paper exactly as specified."""
+
+    def __init__(self, policy, q_function, w_max=200, epsilon_abm=0.05,
+                 n_candidates=16, mu=0.8, background_size=50):
+        self.policy = policy
+        self.q_function = q_function
+        self.w_max = w_max
+        self.epsilon_abm = epsilon_abm
+        self.n_candidates = n_candidates
+        self.mu = mu
+        self.window = deque(maxlen=w_max)
+        self.log = []
+        self._background = deque(maxlen=background_size)
+        self._explainer = None
+
+    def _ensure_explainer(self, model_fn):
+        if self._explainer is None and len(self._background) >= 10:
+            bg = np.stack(list(self._background))
+            self._explainer = shap.TreeExplainer(model_fn, bg)
+
+    def compute_shap(self, model_fn, z_t):
+        """Line 3: TreeSHAP attribution over the fused representation z_t."""
+        self._background.append(z_t)
+        self._ensure_explainer(model_fn)
+        if self._explainer is None:
+            return np.zeros_like(z_t)
+        return self._explainer.shap_values(z_t.reshape(1, -1))[0]
+
+    def measure_parity_gap(self):
+        """Line 5: Delta_hat_DP over the sliding window."""
+        if len(self.window) < 2:
+            return 0.0
+        groups = np.array([w["group"] for w in self.window])
+        actions = np.array([w["action"] for w in self.window])
+        p_pos = {}
+        for g in np.unique(groups):
+            mask = groups == g
+            p_pos[g] = (actions[mask] > 0).mean() if mask.sum() > 0 else 0.0
+        if len(p_pos) < 2:
+            return 0.0
+        vals = list(p_pos.values())
+        return abs(max(vals) - min(vals))
+
+    def step(self, candidate_action, belief_state, group, model_fn, z_t):
+        """One ABM step — full Algorithm 2 body (lines 2-12)."""
+        phi_t = self.compute_shap(model_fn, z_t)
+        self.window.append({"action": candidate_action, "group": group})
+
+        delta_hat_dp = self.measure_parity_gap()
+        bias_flag = delta_hat_dp > self.epsilon_abm
+
+        if not bias_flag:
+            final_action = candidate_action
+        else:
+            candidates = self.policy.sample(
+                belief_state, n=self.n_candidates
+            )
+            scores = []
+            for c in candidates:
+                q_val = self.q_function(belief_state, c)
+                gap_c = self._estimate_gap_with_candidate(c, group)
+                penalty = self.mu * max(0.0, gap_c - self.epsilon_abm)
+                scores.append(q_val - penalty)
+            final_action = candidates[int(np.argmax(scores))]
+
+        explanation = {
+            "phi_t": phi_t,
+            "delta_hat_dp": delta_hat_dp,
+            "bias_flag": bias_flag,
+            "alpha_m": None,  # populated by CAFL upstream
+        }
+        self.log.append({
+            "action": final_action, "group": group,
+            "bias_flag": bias_flag,
+        })
+        return final_action, explanation
+
+    def _estimate_gap_with_candidate(self, candidate, group):
+        """Estimate parity gap if `candidate` replaced the most recent action."""
+        window_copy = list(self.window)
+        if window_copy:
+            window_copy[-1] = {"action": candidate, "group": group}
+        groups = np.array([w["group"] for w in window_copy])
+        actions = np.array([w["action"] for w in window_copy])
+        p_pos = {}
+        for g in np.unique(groups):
+            mask = groups == g
+            p_pos[g] = (actions[mask] > 0).mean() if mask.sum() > 0 else 0.0
+        if len(p_pos) < 2:
+            return 0.0
+        vals = list(p_pos.values())
+        return abs(max(vals) - min(vals))
