@@ -1,0 +1,91 @@
+"""
+Reproduces Table 3 (Main Results) from released evaluation logs.
+
+Usage:
+    python results/tables/make_table3.py --eval_dir results/raw_logs/eval/
+
+Expects one JSON file per model (B1-B5, MEIA) with per-session metric
+values, matching the schema produced by src/evaluation/metrics.py.
+"""
+
+import argparse
+import json
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+MODELS = ["B1_gpt4o_text", "B2_gpt4o_multimodal", "B3_ethical_unimodal",
+          "B4_agentic_vr", "B5_pid_lagrangian", "MEIA"]
+
+
+def load_eval_results(eval_dir: Path) -> dict:
+    results = {}
+    for model in MODELS:
+        path = eval_dir / f"{model}.json"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Missing {path}. Download released evaluation logs from "
+                "the Hugging Face Hub link in the top-level README, or "
+                "regenerate by running scripts/run_full_evaluation.py."
+            )
+        with open(path) as f:
+            results[model] = json.load(f)
+    return results
+
+
+def bootstrap_ci(values: np.ndarray, n_boot=1000, seed=42):
+    rng = np.random.default_rng(seed)
+    means = [rng.choice(values, len(values), replace=True).mean()
+             for _ in range(n_boot)]
+    return np.percentile(means, 2.5), np.percentile(means, 97.5)
+
+
+def make_table3(eval_dir: str, output_csv: str = "table3_main_results.csv"):
+    results = load_eval_results(Path(eval_dir))
+
+    rows = []
+    b1_ues = np.array(results["B1_gpt4o_text"]["ues"])
+    b1_delta_dp = np.mean(results["B1_gpt4o_text"]["delta_dp"])
+
+    for model in MODELS:
+        ues = np.array(results[model]["ues"])
+        uts = np.array(results[model]["uts"])
+        delta_dp = np.mean(results[model]["delta_dp"])
+        delta_eo = np.mean(results[model]["delta_eo"])
+
+        bri = 100 * (b1_delta_dp - delta_dp) / b1_delta_dp if b1_delta_dp else 0.0
+        ci_low, ci_high = bootstrap_ci(ues)
+
+        pooled_std = np.sqrt((ues.std(ddof=1)**2 + b1_ues.std(ddof=1)**2) / 2)
+        cohens_d = (ues.mean() - b1_ues.mean()) / pooled_std if model != "B1_gpt4o_text" else 0.0
+
+        t_stat, p_val = stats.ttest_ind(ues, b1_ues) if model != "B1_gpt4o_text" else (0, 1)
+
+        rows.append({
+            "model": model,
+            "UES_mean": round(ues.mean(), 1),
+            "UES_95CI_low": round(ci_low, 1),
+            "UES_95CI_high": round(ci_high, 1),
+            "BRI_pct": round(bri, 1),
+            "UTS_mean": round(uts.mean(), 1),
+            "delta_DP": round(delta_dp, 3),
+            "delta_EO": round(delta_eo, 3),
+            "cohens_d_vs_B1": round(cohens_d, 2),
+            "p_value_vs_B1": p_val,
+        })
+
+    df = pd.DataFrame(rows)
+    df.to_csv(output_csv, index=False)
+    print(df.to_string(index=False))
+    print(f"\nSaved to {output_csv}")
+    return df
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eval_dir", type=str, required=True)
+    parser.add_argument("--output", type=str, default="table3_main_results.csv")
+    args = parser.parse_args()
+    make_table3(args.eval_dir, args.output)
