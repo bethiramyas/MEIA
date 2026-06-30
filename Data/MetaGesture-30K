@@ -1,0 +1,81 @@
+# Datasheet for MetaGesture-30K
+
+Following the framework of Gebru et al., "Datasheets for Datasets"
+(Commun. ACM, 2021).
+
+## Motivation
+
+**For what purpose was the dataset created?**
+To fine-tune the gesture modality encoder (Temporal Convolutional Network,
+Section 4.1 of the paper) of the MEIA Multimodal Perception Module on
+naturalistic skeletal motion data captured during metaverse interactions.
+
+**Who created the dataset?**
+Collected by the MEIA research team under institutional ethics approval
+**#IRB-2024-0147** (same approval covering MetaConvo-50K).
+
+## Composition
+
+**What do the instances represent?**
+Each instance is a 53-joint skeletal pose sequence captured at 60 Hz
+during a single interaction session.
+
+**How many instances?**
+30,000 motion-capture sequences.
+
+**Does the dataset contain all possible instances or a sample?**
+A sample, collected in-lab from 48 individual volunteers (the same
+participant pool used for MetaConvo-50K text collection), across multiple
+sessions per participant.
+
+**What data does each instance consist of?**
+53-joint 3D skeletal coordinates at 60 Hz, session metadata (scenario
+type, duration), no audio or video recording.
+
+## Collection Process
+
+**How was the data collected?**
+Collected in a motion-capture laboratory using a marker-based optical
+tracking system, from 48 volunteers who gave informed consent for
+research use, as described in Section 4.1 of the paper.
+
+**Who was involved in the collection process?**
+Research staff under IRB-2024-0147 supervision.
+
+## Preprocessing/Cleaning/Labeling
+
+Raw marker trajectories were converted to a standard 53-joint skeleton
+format, temporally synchronised to the 60 Hz capture rate, and
+quality-checked to remove tracking dropouts exceeding 200 ms.
+
+## Uses
+
+**Has the dataset been used for any tasks already?**
+Yes — fine-tuning the TCN gesture encoder (8 layers, 128-dim) for gesture
+category classification as part of Stage 1 pre-training (Section 4.4).
+
+## Distribution
+
+**Will the dataset be distributed to third parties?**
+**Raw motion-capture sequences are NOT publicly redistributed.** Consistent
+with the consent protocol under which participants were enrolled (research
+use by the original collecting institution only).
+
+**What is released instead?**
+1. This datasheet (full collection and consent protocol)
+2. Derived 128-dimensional gesture embeddings (post-TCN, pre-projection)
+3. The fine-tuned TCN encoder checkpoint (see `checkpoints/`)
+
+## Maintenance
+
+**Who maintains the dataset?**
+The corresponding author of the paper. Contact via GitHub Issues for
+questions about data provenance.
+
+## Ethical Considerations
+
+Collected under IRB-2024-0147 with informed consent from all 48
+participants. Motion-capture data of this kind can in principle be used
+for biometric re-identification; access to raw sequences is restricted to
+the original research team for this reason, consistent with the consent
+participants provided.
