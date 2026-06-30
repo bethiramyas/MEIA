@@ -1,0 +1,91 @@
+# Datasheet for MetaConvo-50K
+
+Following the framework of Gebru et al., "Datasheets for Datasets"
+(Commun. ACM, 2021).
+
+## Motivation
+
+**For what purpose was the dataset created?**
+MetaConvo-50K was created to fine-tune the text modality encoder
+(RoBERTa-large) of the MEIA Multimodal Perception Module (Section 4.1 of
+the paper) on naturalistic metaverse text-chat interactions, and to
+calibrate the simulation behaviour of the MultiEthic-V benchmark.
+
+**Who created the dataset?**
+Collected by the MEIA research team headed by Remya sree  under institutional ethics approval
+**#IRB-2024-0147**.
+
+## Composition
+
+**What do the instances represent?**
+Each instance is an anonymised text-chat transcript fragment exchanged
+between a user and a virtual agent during a metaverse interaction session.
+
+**How many instances?**
+50,000 anonymised interaction transcripts.
+
+**Does the dataset contain all possible instances or a sample?**
+A sample, collected during a 6-month data collection window across three
+interaction scenario types matching S1/S2/S3 in the paper's MultiEthic-V
+benchmark (Section 5.1).
+
+**What data does each instance consist of?**
+Raw text transcript (tokenised), session metadata (scenario type,
+duration, turn count), and de-identified sentiment labels.
+
+## Collection Process
+
+**How was the data collected?**
+Collected from 48 volunteer participants under a research data-access
+agreement and platform Terms-of-Service approval (**DSA-2024-118**), as
+described in Section 4.1 of the paper.
+
+**Who was involved in the collection process?**
+Research staff under IRB-2024-0147 supervision, with informed consent
+obtained from all 48 participants prior to data collection.
+
+## Preprocessing/Cleaning/Labeling
+
+All personally identifying content (names, locations, contact information)
+was removed using a combination of automated PII-detection and manual
+review prior to any use or release.
+
+## Uses
+
+**Has the dataset been used for any tasks already?**
+Yes — fine-tuning the RoBERTa-large text encoder for 10 epochs (Section 4.4,
+Stage 1 pre-training) and calibrating simulated text-interaction patterns
+in the MultiEthic-V benchmark.
+
+**What other tasks could the dataset be used for?**
+General research on metaverse text-interaction modelling, conversational
+sentiment analysis in immersive environments.
+
+## Distribution
+
+**Will the dataset be distributed to third parties?**
+**Raw transcripts are NOT publicly redistributed** due to licensing
+constraints in the underlying platform Terms-of-Service agreement
+(DSA-2024-118). This is stated explicitly in Section 4.1 of the paper.
+
+**What is released instead?**
+1. This datasheet (full collection and consent protocol)
+2. Derived 768-dimensional text embeddings (post-RoBERTa, pre-projection),
+   which do not permit reconstruction of the original text, released at
+   the Zenodo link in the top-level repository README
+3. The fine-tuned RoBERTa-large checkpoint itself (see `checkpoints/`)
+
+## Maintenance
+
+**Who maintains the dataset?**
+The corresponding author of the paper. Contact via GitHub Issues on this
+repository for questions about data provenance or the consent protocol.
+
+## Ethical Considerations
+
+This dataset was collected under IRB-2024-0147. All 48 participants
+provided informed consent for their (de-identified) interaction data to
+be used in model training and academic publication. No protected
+demographic attributes were collected directly; the demographic-cohort
+labels used elsewhere in the paper (Section 4.3) are inferred from
+behavioural signals, not from data collected in MetaConvo-50K.
