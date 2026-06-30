@@ -1,0 +1,25 @@
+name: meia
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pytorch=2.2
+  - pytorch-cuda=12.1
+  - numpy=1.26
+  - scipy=1.11
+  - pandas=2.1
+  - matplotlib=3.8
+  - pip
+  - pip:
+    - transformers==4.38.2
+    - shap==0.45.0
+    - statsmodels==0.14.1
+    - scikit-learn==1.4.0
+    - pyyaml==6.0.1
+    - tqdm==4.66.2
+    - wandb==0.16.3
+    - pytest==8.0.0
+    - opencv-python==4.9.0.80
