@@ -1,0 +1,39 @@
+# Planned Human-Subjects Study
+
+This repository accompanies a paper whose results are derived entirely
+from a **calibrated multi-agent simulation** (the MultiEthic-V benchmark).
+As stated in Section 6.4 (Limitations) of the paper, an in-situ
+human-subjects study is planned as the critical next step to validate
+whether the simulated proxy gains (UES, BRI, UTS) transfer to real human
+engagement and trust.
+
+## Status
+
+| Item | Status |
+|---|---|
+| IRB application | #IRB-2025-0311 — under review |
+| Target platforms | Meta Horizon Worlds, Decentraland |
+| Study design | Between-subjects, MEIA vs. B1/B4/B5 baselines |
+| Target sample size | To be determined pending IRB approval and power analysis |
+
+## What This Means for the Current Repository
+
+All code, benchmarks, and results in this repository reflect the
+**simulation study only**. No human-subject data is collected, stored, or
+released as part of this repository. The demographic cohorts referenced
+throughout the code (`A`-`E`) are simulation-internal behavioural cohort
+labels calibrated to US Census Bureau population proportions — they do
+not represent or derive from any real individual's demographic attributes.
+
+## Future Updates
+
+Upon IRB approval and completion of the human-subjects study, this
+document and the repository will be updated with:
+- A separate `human_study/` directory with the (de-identified, IRB-approved)
+  analysis code
+- An updated paper or follow-up publication reporting human-subject
+  results
+- Cross-references between simulated and human-validated metrics
+
+Questions about the planned study can be directed to the corresponding
+author via GitHub Issues on this repository.
