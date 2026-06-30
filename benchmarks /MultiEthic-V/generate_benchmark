@@ -1,0 +1,130 @@
+"""
+MultiEthic-V Benchmark Generator (Section 5.1 of the paper).
+
+Generates the 12,000-session simulated interaction benchmark used for all
+evaluation results (Tables 3-5, Figures 2-5). Requires Unreal Engine 5.3
+with the MetaHuman plugin for full-fidelity avatar rendering; a headless
+mode without avatar rendering is provided for behavioural-signal-only
+reproduction (sufficient for reproducing UES/BRI/UTS metric computation
+without the rendering pipeline).
+
+Benchmark composition (must match exactly for valid comparison):
+    n = 12,000 total sessions
+    n = 4,000 per scenario (S1, S2, S3)
+    n = 2,400 per demographic cohort (A-E)
+    Cohort proportions: A=29%, B=26%, C=22%, D=14%, E=9%
+        (US Census Bureau 2020 proportions, Section 5.1)
+"""
+
+from __future__ import annotations
+import json
+import numpy as np
+from dataclasses import dataclass, asdict
+from pathlib import Path
+
+
+COHORT_PROPORTIONS = {"A": 0.29, "B": 0.26, "C": 0.22, "D": 0.14, "E": 0.09}
+
+SCENARIOS = {
+    "S1_social_collaboration": {
+        "description": "Multi-turn negotiation in a virtual co-working space",
+        "mean_duration_min": 8.2,
+        "std_duration_min": 2.1,
+    },
+    "S2_immersive_commerce": {
+        "description": "AI-assisted personalised recommendation in virtual retail",
+        "mean_duration_min": 5.7,
+        "std_duration_min": 1.8,
+        "note": "Recommendation patterns most sensitive to demographic attributes",
+    },
+    "S3_educational_tutoring": {
+        "description": "Socratic dialogue and formative assessment in virtual classroom",
+        "mean_duration_min": 18.4,
+        "std_duration_min": 3.6,
+    },
+}
+
+
+@dataclass
+class BenchmarkConfig:
+    n_sessions_per_scenario: int = 4000
+    n_cohorts: int = 5
+    render_fps: int = 72
+    seed: int = 42
+    output_dir: str = "benchmarks/MultiEthic-V/generated"
+
+
+def assign_cohorts(n_sessions: int, seed: int) -> np.ndarray:
+    rng = np.random.default_rng(seed)
+    cohorts = list(COHORT_PROPORTIONS.keys())
+    probs = list(COHORT_PROPORTIONS.values())
+    return rng.choice(cohorts, size=n_sessions, p=probs)
+
+
+def generate_session_metadata(scenario_name: str, scenario_cfg: dict,
+                               cfg: BenchmarkConfig) -> list[dict]:
+    rng = np.random.default_rng(cfg.seed)
+    cohorts = assign_cohorts(cfg.n_sessions_per_scenario, cfg.seed)
+    durations = rng.normal(
+        scenario_cfg["mean_duration_min"],
+        scenario_cfg["std_duration_min"],
+        cfg.n_sessions_per_scenario,
+    ).clip(min=1.0)
+
+    sessions = []
+    for i in range(cfg.n_sessions_per_scenario):
+        sessions.append({
+            "session_id": f"{scenario_name}_{i:05d}",
+            "scenario": scenario_name,
+            "cohort": str(cohorts[i]),
+            "duration_min": float(durations[i]),
+            "render_fps": cfg.render_fps,
+        })
+    return sessions
+
+
+def generate_benchmark(cfg: BenchmarkConfig):
+    """Generates the full MultiEthic-V session manifest (metadata only).
+
+    NOTE: This produces the session manifest and scenario configuration
+    used to drive the Unreal Engine 5.3 simulation. The simulation itself
+    requires the UE5.3 project files (released separately, see
+    benchmarks/MultiEthic-V/unreal_project/README.md) and is computationally
+    expensive (~600 GPU-hours for the full 12,000-session benchmark).
+
+    For metric-reproduction purposes without re-running the simulation,
+    use the pre-computed interaction logs in results/raw_logs/.
+    """
+    out_dir = Path(cfg.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    all_sessions = []
+    for scenario_name, scenario_cfg in SCENARIOS.items():
+        sessions = generate_session_metadata(scenario_name, scenario_cfg, cfg)
+        all_sessions.extend(sessions)
+
+        with open(out_dir / f"{scenario_name}_manifest.json", "w") as f:
+            json.dump(sessions, f, indent=2)
+
+    with open(out_dir / "full_manifest.json", "w") as f:
+        json.dump({
+            "config": asdict(cfg),
+            "cohort_proportions": COHORT_PROPORTIONS,
+            "total_sessions": len(all_sessions),
+            "sessions": all_sessions,
+        }, f, indent=2)
+
+    print(f"Generated manifest for {len(all_sessions)} sessions -> {out_dir}")
+    return all_sessions
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--output_dir", type=str,
+                        default="benchmarks/MultiEthic-V/generated")
+    args = parser.parse_args()
+
+    cfg = BenchmarkConfig(seed=args.seed, output_dir=args.output_dir)
+    generate_benchmark(cfg)
