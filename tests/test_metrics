@@ -1,0 +1,35 @@
+"""Unit tests for src/evaluation/metrics.py"""
+import numpy as np
+import pytest
+from src.evaluation.metrics import compute_ues, compute_bri, compute_uts, cohens_d
+
+
+def test_compute_ues_range():
+    n = 50
+    ues = compute_ues(
+        duration_norm=np.random.rand(n),
+        interaction_freq_norm=np.random.rand(n),
+        task_completion=np.random.rand(n),
+        likert_7pt_norm=np.random.rand(n),
+    )
+    assert (ues >= 0).all() and (ues <= 100).all()
+
+
+def test_compute_bri_zero_baseline():
+    assert compute_bri(0.0, 0.05) == 0.0
+
+
+def test_compute_bri_known_value():
+    # From paper Section 5.3: B1 Delta_EO=0.194, MEIA Delta_EO=0.048 -> 75.3%
+    bri = compute_bri(0.194, 0.048)
+    assert abs(bri - 75.26) < 0.5
+
+
+def test_compute_uts_requires_18_items():
+    with pytest.raises(AssertionError):
+        compute_uts(np.random.rand(10, 17))
+
+
+def test_cohens_d_zero_for_identical_groups():
+    g = np.random.rand(100)
+    assert abs(cohens_d(g, g)) < 1e-9
