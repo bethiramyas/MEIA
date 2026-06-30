@@ -1,0 +1,23 @@
+# Supplementary Materials
+
+This directory contains the supplementary materials referenced throughout
+the paper, submitted alongside the manuscript.
+
+| File | Referenced in paper | Description |
+|---|---|---|
+| `A_theorem1_proof.pdf` | Section 3.3, Theorem 1 | Full proof verifying conditions RC1-RC3 for the Ethical-POMDP, completing the instantiation of Paternain et al. [29] |
+| `B_gpt4o_prompts/` | Section 5.1 | Complete system prompts and raw outputs for the B1/B2 GPT-4o baselines (snapshot `gpt-4o-2024-08-06`), released for reproducibility given that commercial endpoints evolve over time |
+| `C_table_S3_task_completion.csv` | Section 5.1 | Task-completion-only comparison (disjoint from the engagement reward signal), addressing the partial circularity between R_engage and UES |
+| `D_confusion_matrix.csv` | Section 4.3 | Confusion matrix for the demographic-inference head across the five cohorts (balanced accuracy 0.78, per-cohort range 0.71-0.84) |
+| `S4_s2_subcondition.csv` | Section 5.3 | S2 latency-sensitive sub-condition results, where B5 marginally outperforms MEIA on raw task-completion |
+
+## Notes
+
+- All supplementary CSV/JSON files use the same schema as the corresponding
+  `results/raw_logs/` files for direct comparison.
+- The Theorem 1 proof (Appendix A) is provided as a standalone PDF for
+  reviewer convenience and is not required to run any code in this
+  repository.
+- The GPT-4o prompt logs (Appendix B) document the exact prompts used;
+  re-running them against the live API may yield different results if
+  OpenAI updates the pinned snapshot's underlying weights.
