@@ -1,0 +1,63 @@
+# MEIA main experiment configuration
+# Reproduces the exact hyperparameters used in the paper (Sections 4.4-4.6)
+
+model:
+  hidden_dim: 512
+  num_attention_heads: 8        # H, Eq. (3)
+  attention_head_dim: 64        # d_k, Eq. (3)
+  num_particles: 512            # N, BSE particle filter
+  bse_update_hz: 10
+  gesture_tcn_layers: 8
+  gesture_tcn_dim: 128
+  haptic_cnn_layers: 4
+  haptic_cnn_dim: 128
+
+ecrl:                            # Algorithm 1
+  epsilon_dp: 0.05
+  epsilon_eo: 0.05
+  alpha_pi: 3.0e-4
+  alpha_lambda: 1.0e-3
+  epsilon_clip: 0.2
+  gamma: 0.99
+  entropy_coef: 0.01
+  n_steps_per_episode: 256
+  n_minibatches: 8
+  n_episodes: 1200
+  n_seeds: 5                     # Figure 2 reports mean over 5 seeds
+
+abm:                              # Algorithm 2
+  w_max: 200
+  epsilon_abm: 0.05
+  n_candidates: 16
+  mu: 0.8
+  background_size: 50            # TreeSHAP background reservoir
+
+training_stages:
+  stage1_pretrain_epochs: 5
+  stage2_joint_pretrain_epochs: 3
+  stage2_lr: 1.0e-4
+  stage3_finetune_lr: 1.0e-5
+
+benchmark:
+  name: MultiEthic-V
+  n_sessions_total: 12000
+  n_sessions_per_scenario: 4000
+  n_cohorts: 5
+  cohort_proportions: {A: 0.29, B: 0.26, C: 0.22, D: 0.14, E: 0.09}
+  render_engine: "Unreal Engine 5.3"
+  render_fps: 72
+
+evaluation:
+  n_bootstrap: 1000
+  bonferroni_alpha: 0.05
+  bonferroni_n_comparisons: 20    # alpha_adj = 0.05/20 = 0.0025
+  baselines: [B1_gpt4o_text, B2_gpt4o_multimodal, B3_ethical_unimodal,
+              B4_agentic_vr, B5_pid_lagrangian]
+
+hardware:
+  training_gpus: "4x NVIDIA A100-80GB"
+  inference_target: "Meta Quest 3 (Snapdragon XR2 Gen 2)"
+  target_frame_budget_ms: 50
+  measured_inference_latency_ms: 47
+
+seed: 42
