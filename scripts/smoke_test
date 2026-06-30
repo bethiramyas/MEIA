@@ -1,0 +1,111 @@
+"""
+Smoke test: verifies the repository is correctly installed and that core
+components run end-to-end on synthetic data, without requiring the full
+MultiEthic-V benchmark, GPU, or external model downloads beyond small
+pretrained checkpoints.
+
+Runtime: ~2 minutes on CPU.
+
+Usage:
+    python scripts/smoke_test.py
+"""
+
+import sys
+import torch
+import numpy as np
+
+
+def test_imports():
+    print("[1/5] Testing imports...", end=" ")
+    try:
+        from src.models.hmf import HMFConfig, CrossModalAttentionFusion, BeliefStateEstimator
+        from src.training.ecrl import ECRLConfig, ECRLTrainer
+        from src.evaluation.abm import AdaptiveBiasMitigation
+        from src.evaluation.metrics import compute_ues, compute_bri, compute_uts
+        print("OK")
+        return True
+    except ImportError as e:
+        print(f"FAILED: {e}")
+        return False
+
+
+def test_cafl_forward():
+    print("[2/5] Testing CAFL forward pass (Eq. 3)...", end=" ")
+    from src.models.hmf import HMFConfig, CrossModalAttentionFusion
+    cfg = HMFConfig()
+    cafl = CrossModalAttentionFusion(cfg)
+    batch_size = 4
+    belief = torch.randn(batch_size, cfg.hidden_dim)
+    modality_embeddings = {
+        "text": torch.randn(batch_size, cfg.hidden_dim),
+        "vis": torch.randn(batch_size, cfg.hidden_dim),
+        "gest": torch.randn(batch_size, cfg.hidden_dim),
+        "hap": torch.randn(batch_size, cfg.hidden_dim),
+    }
+    z_t, alpha = cafl(belief, modality_embeddings)
+    assert z_t.shape == (batch_size, cfg.hidden_dim)
+    assert all(0 <= a.min() and a.max() <= 1 for a in alpha.values())
+    alpha_sum = sum(alpha.values())
+    assert torch.allclose(alpha_sum, torch.ones_like(alpha_sum), atol=1e-5), \
+        "Modality weights must sum to 1 (Section 4.1)"
+    print("OK")
+
+
+def test_bse_forward():
+    print("[3/5] Testing BSE particle filter (Eq. 1)...", end=" ")
+    from src.models.hmf import HMFConfig, BeliefStateEstimator
+    cfg = HMFConfig()
+    bse = BeliefStateEstimator(cfg)
+    batch_size = 2
+    particles = torch.randn(batch_size, cfg.num_particles, cfg.hidden_dim)
+    action = torch.randn(batch_size, cfg.hidden_dim)
+    observation = torch.randn(batch_size, cfg.hidden_dim)
+    belief, pred, weights = bse(particles, action, observation)
+    assert belief.shape == (batch_size, cfg.hidden_dim)
+    assert torch.allclose(weights.sum(dim=-1), torch.ones(batch_size), atol=1e-5)
+    print("OK")
+
+
+def test_metrics():
+    print("[4/5] Testing UES/BRI/UTS metrics...", end=" ")
+    from src.evaluation.metrics import compute_ues, compute_bri, compute_uts
+    n = 100
+    ues = compute_ues(
+        duration_norm=np.random.rand(n),
+        interaction_freq_norm=np.random.rand(n),
+        task_completion=np.random.rand(n),
+        likert_7pt_norm=np.random.rand(n),
+    )
+    assert (0 <= ues).all() and (ues <= 100).all()
+    bri = compute_bri(delta_dp_baseline=0.194, delta_dp_model=0.048)
+    assert abs(bri - 75.26) < 1.0, f"Expected ~75.3% per paper, got {bri}"
+    uts = compute_uts(np.random.randint(1, 8, size=(n, 18)).astype(float))
+    assert 0 <= uts <= 100
+    print("OK")
+
+
+def test_abm():
+    print("[5/5] Testing ABM bias mitigation logic...", end=" ")
+    from src.evaluation.abm import AdaptiveBiasMitigation
+    abm = AdaptiveBiasMitigation(
+        policy=None, q_function=lambda b, a: 0.5,
+        w_max=20, epsilon_abm=0.05, n_candidates=4,
+    )
+    gap = abm.measure_parity_gap()
+    assert gap == 0.0, "Empty window should report zero parity gap"
+    print("OK")
+
+
+if __name__ == "__main__":
+    print("=" * 50)
+    print("MEIA Repository Smoke Test")
+    print("=" * 50)
+    ok = test_imports()
+    if not ok:
+        print("\nFAILED: fix import errors before proceeding.")
+        sys.exit(1)
+    test_cafl_forward()
+    test_bse_forward()
+    test_metrics()
+    test_abm()
+    print("\nAll smoke tests passed. Repository is correctly installed.")
