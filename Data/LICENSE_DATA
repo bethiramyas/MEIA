@@ -1,0 +1,35 @@
+# License for Released Data Artifacts
+
+The following artifacts are released under
+**CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/):
+
+- MultiEthic-V benchmark scenario configurations and generation scripts
+  (`benchmarks/MultiEthic-V/`)
+- Datasheets for MetaConvo-50K and MetaGesture-30K
+  (`data/datasheets/`)
+- Derived text and gesture embeddings (hosted on Zenodo, see top-level README)
+- Demographic-inference confusion matrix (`supplementary/D_confusion_matrix.csv`)
+- GPT-4o baseline prompt logs (`supplementary/B_gpt4o_prompts/`)
+
+## Important Restriction
+
+**Raw MetaConvo-50K transcripts and MetaGesture-30K motion-capture
+sequences are NOT covered by this license and are NOT distributed in this
+repository or any associated hosting platform.** This is due to:
+
+1. Platform Terms-of-Service restrictions under data-access agreement
+   DSA-2024-118 (Section 4.1 of the paper)
+2. The original participant consent protocol, under which the 48
+   contributing volunteers consented to research use by the original
+   collecting institution, not unrestricted public redistribution
+
+See the individual datasheets in `data/datasheets/` for full provenance,
+consent, and access-restriction details.
+
+## Model Weights License
+
+Trained model weights (HMF encoders, ECRL policy checkpoint) are released
+under CC BY 4.0 via the Hugging Face Hub link in the top-level README. Note
+that the underlying pretrained base models (RoBERTa-large, ViT-B/16,
+LLaMA-3-8B-Instruct) carry their own original licenses, which continue to
+apply to the corresponding portions of the fine-tuned weights.
